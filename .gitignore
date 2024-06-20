@@ -23,3 +23,4 @@ go.work
 .env
 /data-explorer
 /*.db
+/bin
