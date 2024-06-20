@@ -21,7 +21,11 @@ var ServeCmd = &cobra.Command{
 			}
 		}
 
-		server := server.NewServer()
+		server, err := server.NewServer()
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		if err := server.Run(); err != nil {
 			log.Fatal(err)
 		}

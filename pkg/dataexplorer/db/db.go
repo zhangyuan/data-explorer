@@ -13,7 +13,7 @@ import (
 	"github.com/samber/lo"
 )
 
-func NewDB(dsn string) (*sqlx.DB, error) {
+func NewConnection(dsn string) (*sqlx.DB, error) {
 	if strings.HasPrefix(dsn, "postgres") {
 		return sqlx.Connect("postgres", strings.TrimPrefix(dsn, "postgres://"))
 	} else if strings.HasPrefix(dsn, "mysql") {
@@ -31,7 +31,7 @@ type QueryResult struct {
 }
 
 func Query(ctx context.Context, dsn string, query string) (*QueryResult, error) {
-	db, err := NewDB(dsn)
+	db, err := NewConnection(dsn)
 	if err != nil {
 		return nil, err
 	}
