@@ -3,7 +3,7 @@ package models
 import "time"
 
 type Issue struct {
-	ID          uint           `gorm:"primarykey" json:"id"`
+	ID          uint64         `gorm:"primarykey" json:"id"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 	Title       string         `json:"title"`
@@ -12,10 +12,10 @@ type Issue struct {
 }
 
 type IssueSection struct {
-	ID        uint      `gorm:"primarykey" json:"id"`
+	ID        uint64    `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
-	IssueID   uint      `json:"issueId"`
+	IssueID   uint64    `json:"issueId"`
 
 	Header string `json:"header"`
 	Body   string `json:"body"`

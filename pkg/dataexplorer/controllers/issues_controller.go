@@ -102,3 +102,20 @@ func (controller *IssuesController) CreateSection(c *gin.Context) {
 
 	c.JSON(200, section)
 }
+
+func (controller *IssuesController) ListSections(c *gin.Context) {
+	issueId, err := GetUint(c.Param("issueId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	var sections []models.IssueSection
+
+	if tx := controller.db.Limit(100).Offset(0).Where(&models.IssueSection{IssueID: issueId}).Find(&sections); tx.Error != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(tx.Error))
+		return
+	}
+
+	c.JSON(200, sections)
+}

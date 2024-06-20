@@ -39,6 +39,7 @@ func NewServer() (*Server, error) {
 	issueController := controllers.NewIssuesController(db)
 	r.POST("/issues", issueController.Create)
 	r.POST("/issues/:issueId/sections", issueController.CreateSection)
+	r.GET("/issues/:issueId/sections", issueController.ListSections)
 
 	return &Server{
 		engine: r,
