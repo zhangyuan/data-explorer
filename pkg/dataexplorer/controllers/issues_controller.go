@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"data-explorer/pkg/dataexplorer/models"
+	"data-explorer/pkg/dataexplorer/repositories"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +14,11 @@ type CreateIssueRequest struct {
 	Description string `json:"description"`
 }
 
+type CreateQueryRequest struct {
+	Title string `json:"title"`
+	Query string `json:"query"`
+}
+
 type CreateIssueSectionRequest struct {
 	Header string `json:"header"`
 	Body   string `json:"body"`
@@ -20,11 +26,12 @@ type CreateIssueSectionRequest struct {
 }
 
 type IssuesController struct {
-	db *gorm.DB
+	db         *gorm.DB
+	repository *repositories.Repository
 }
 
-func NewIssuesController(db *gorm.DB) *IssuesController {
-	return &IssuesController{db: db}
+func NewIssuesController(issueRepository *repositories.Repository) *IssuesController {
+	return &IssuesController{repository: issueRepository}
 }
 
 func (controller *IssuesController) Create(c *gin.Context) {
@@ -40,9 +47,8 @@ func (controller *IssuesController) Create(c *gin.Context) {
 		Description: request.Description,
 	}
 
-	db := controller.db.Create(&issue)
-	if db.Error != nil {
-		c.AbortWithStatusJSON(400, gin.H{"error": db.Error})
+	if err := controller.repository.CreateIssue(&issue); err != nil {
+		c.AbortWithStatusJSON(400, gin.H{"error": err})
 		return
 	}
 
@@ -64,15 +70,9 @@ func NewErrorResponse(err error) *ErrorResponse {
 }
 
 func (controller *IssuesController) CreateSection(c *gin.Context) {
-	issueId, err := GetUint(c.Param("issueId"))
+	issue, err := controller.repository.FindIssueByStringID(c.Param("issueId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
-		return
-	}
-
-	var issue models.Issue
-	if tx := controller.db.Select("id").First(&issue, issueId); tx.Error != nil {
-		c.AbortWithStatusJSON(400, NewErrorResponse(tx.Error))
 		return
 	}
 
@@ -84,23 +84,51 @@ func (controller *IssuesController) CreateSection(c *gin.Context) {
 	}
 
 	section := models.IssueSection{
-		Header: request.Header,
-		Body:   request.Body,
-		Footer: request.Footer,
+		Header:  request.Header,
+		Body:    request.Body,
+		Footer:  request.Footer,
+		IssueID: issue.ID,
 	}
 
-	db := controller.db.Create(&section)
-	if db.Error != nil {
-		c.AbortWithStatusJSON(400, NewErrorResponse(db.Error))
-		return
-	}
-
-	if err := db.Model(&issue).Association("Sections").Append(&section); err != nil {
+	if err := controller.repository.CreateSection(&section); err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
 		return
 	}
 
 	c.JSON(200, section)
+}
+
+func (controller *IssuesController) CreateQuery(c *gin.Context) {
+	_, err := controller.repository.FindIssueByStringID(c.Param("issueId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	section, err := controller.repository.FindSectionByStringID(c.Param("sectionId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	var request CreateQueryRequest
+
+	if err := c.Bind(&request); err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	query := models.Query{
+		IssueSectionID: section.ID,
+		Title:          request.Title,
+		Query:          request.Query,
+	}
+
+	if err := controller.repository.CreateQuery(&query); err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+	c.JSON(200, query)
 }
 
 func (controller *IssuesController) ListSections(c *gin.Context) {
