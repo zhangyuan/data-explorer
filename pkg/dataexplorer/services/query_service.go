@@ -16,20 +16,25 @@ func NewQueryService(connectionHolder *connection.ConnectionHolder) (*QueryServi
 	}, nil
 }
 
-func (s *QueryService) QueryWithParams(
+func (s *QueryService) Query(
 	ctx context.Context,
 	connectionId string,
 	sqlQuery string,
-	params map[string]string,
 ) (*connection.QueryResult, error) {
 	db, err := s.connectionHolder.GetDB(connectionId)
 	if err != nil {
 		return nil, err
 	}
+	return connection.Query(ctx, db, sqlQuery)
+}
 
+func (s *QueryService) CompileSQL(
+	sqlQuery string,
+	params map[string]string,
+) string {
 	if params != nil {
 		sqlQuery = template.SimpleCompile(sqlQuery, params)
 	}
 
-	return connection.Query(ctx, db, sqlQuery)
+	return sqlQuery
 }

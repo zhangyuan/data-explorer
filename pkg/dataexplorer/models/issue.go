@@ -14,10 +14,10 @@ type Issue struct {
 	Title       string `json:"title"`
 	Description string `json:"description"`
 
-	Sections []IssueSection `json:"sections"`
+	Sections []Section `json:"sections"`
 }
 
-type IssueSection struct {
+type Section struct {
 	ID        uint64    `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
@@ -35,11 +35,12 @@ type SQLQuery struct {
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 
-	IssueSectionID uint64 `json:"section_id"`
+	IssueID   uint64 `json:"issue_id"`
+	SectionID uint64 `json:"section_id"`
 
 	ConnectionId string         `json:"connection_id"`
 	Title        string         `json:"title"`
-	Query        string         `json:"input" gorm:"type:text"`
+	Query        string         `json:"query" gorm:"type:text"`
 	Params       datatypes.JSON `json:"params"`
 	Sql          string         `json:"sql" gorm:"type:text"`
 	Result       datatypes.JSON `json:"result"`

@@ -33,7 +33,9 @@ func (controller *QueryController) Query(c *gin.Context) {
 		return
 	}
 
-	result, err := controller.queryService.QueryWithParams(c, request.ConnectionId, request.Query, request.Params)
+	sql := controller.queryService.CompileSQL(request.Query, request.Params)
+
+	result, err := controller.queryService.Query(c, request.ConnectionId, sql)
 
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{

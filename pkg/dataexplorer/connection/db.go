@@ -25,7 +25,6 @@ func NewDB(dsn string) (*sqlx.DB, error) {
 }
 
 type QueryResult struct {
-	SQL         string        `json:"sql"`
 	ColumnNames []string      `json:"column_names"`
 	ColumnTypes []string      `json:"column_types"`
 	Records     []interface{} `json:"records"`
@@ -40,9 +39,7 @@ func Query(ctx context.Context, db *sqlx.DB, query string) (*QueryResult, error)
 
 	defer rows.Close()
 
-	queryResult := QueryResult{
-		SQL: query,
-	}
+	queryResult := QueryResult{}
 
 	columns, err := rows.Columns()
 	if err != nil {

@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"data-explorer/pkg/dataexplorer/connection"
 	"data-explorer/pkg/dataexplorer/models"
 	"data-explorer/pkg/dataexplorer/repositories"
 	"data-explorer/pkg/dataexplorer/services"
@@ -85,7 +84,13 @@ func NewErrorResponse(err error) *ErrorResponse {
 }
 
 func (controller *IssuesController) CreateSection(c *gin.Context) {
-	issue, err := controller.repository.FindIssueByStringID(c.Param("issueId"))
+	issueId, err := GetUint(c.Param("issueId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	issue, err := controller.repository.FindIssueByID(issueId)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
 		return
@@ -98,7 +103,7 @@ func (controller *IssuesController) CreateSection(c *gin.Context) {
 		return
 	}
 
-	section := models.IssueSection{
+	section := models.Section{
 		Header:  request.Header,
 		Body:    request.Body,
 		Footer:  request.Footer,
@@ -117,26 +122,40 @@ func (controller *IssuesController) CreateQuery(c *gin.Context) {
 	var request CreateQueryRequest
 
 	if err := c.Bind(&request); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
+		return
+	}
+
+	issueId, err := GetUint(c.Param("issueId"))
+	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
 		return
 	}
 
-	_, err := controller.repository.FindIssueByStringID(c.Param("issueId"))
+	issue, err := controller.repository.FindIssueByID(issueId)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
 		return
 	}
 
-	section, err := controller.repository.FindSectionByStringID(c.Param("sectionId"))
+	sectionId, err := GetUint(c.Param("sectionId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	section, err := controller.repository.FindSectionByStringID(sectionId)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
 		return
 	}
 
 	sqlQuery := models.SQLQuery{
-		IssueSectionID: section.ID,
-		Title:          request.Title,
-		Query:          request.Query,
+		ConnectionId: request.ConnectionId,
+		IssueID:      issue.ID,
+		SectionID:    section.ID,
+		Title:        request.Title,
+		Query:        request.Query,
 	}
 
 	if request.Params != nil {
@@ -153,8 +172,9 @@ func (controller *IssuesController) CreateQuery(c *gin.Context) {
 		return
 	}
 
+	sql := controller.queryService.CompileSQL(request.Query, request.Params)
 	startTime := time.Now()
-	queryResult, err := controller.queryService.QueryWithParams(c, request.ConnectionId, request.Query, request.Params)
+	queryResult, err := controller.queryService.Query(c, request.ConnectionId, sql)
 	finishTime := time.Now()
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
@@ -169,25 +189,34 @@ func (controller *IssuesController) CreateQuery(c *gin.Context) {
 
 	sqlQuery.Result = datatypes.JSON(resultBytes)
 	sqlQuery.Duration = finishTime.Sub(startTime).Milliseconds()
+	sqlQuery.Sql = sql
 
 	if err := controller.repository.Save(&sqlQuery); err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
 		return
 	}
 
-	c.JSON(http.StatusOK, QueryResponse{
-		Query:    request.Query,
-		Params:   request.Params,
-		Result:   queryResult,
+	c.JSON(http.StatusOK, NewQueryResponse(&sqlQuery))
+}
+
+func NewQueryResponse(sqlQuery *models.SQLQuery) *QueryResponse {
+	return &QueryResponse{
+		ID:       sqlQuery.ID,
+		Query:    sqlQuery.Query,
+		Params:   sqlQuery.Params,
+		SQL:      sqlQuery.Sql,
+		Result:   sqlQuery.Result,
 		Duration: sqlQuery.Duration,
-	})
+	}
 }
 
 type QueryResponse struct {
-	Query    string                  `json:"query"`
-	Params   map[string]string       `json:"params"`
-	Result   *connection.QueryResult `json:"result"`
-	Duration int64                   `json:"duration"`
+	ID       uint64         `json:"id"`
+	Query    string         `json:"query"`
+	Params   datatypes.JSON `json:"params"`
+	SQL      string         `json:"sql"`
+	Result   datatypes.JSON `json:"result"`
+	Duration int64          `json:"duration"`
 }
 
 func (controller *IssuesController) ListSections(c *gin.Context) {
@@ -197,12 +226,40 @@ func (controller *IssuesController) ListSections(c *gin.Context) {
 		return
 	}
 
-	var sections []models.IssueSection
+	var sections []models.Section
 
-	if tx := controller.db.Limit(100).Offset(0).Where(&models.IssueSection{IssueID: issueId}).Find(&sections); tx.Error != nil {
+	if tx := controller.db.Limit(100).Offset(0).Where(&models.Section{IssueID: issueId}).Find(&sections); tx.Error != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(tx.Error))
 		return
 	}
 
 	c.JSON(200, sections)
+}
+
+func (controller *IssuesController) GetQuery(c *gin.Context) {
+	issueId, err := GetUint(c.Param("issueId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	sectionId, err := GetUint(c.Param("sectionId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	queryId, err := GetUint(c.Param("queryId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	sqlQuery, err := controller.repository.FindQuery(issueId, sectionId, queryId)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
+
+	c.JSON(http.StatusOK, NewQueryResponse(sqlQuery))
 }

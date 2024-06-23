@@ -17,28 +17,18 @@ func NewRepository(db *gorm.DB) *Repository {
 	}
 }
 
-func (r *Repository) FindIssueByStringID(stringId string) (*models.Issue, error) {
-	issueId, err := GetUint(stringId)
-	if err != nil {
-		return nil, err
-	}
-
+func (r *Repository) FindIssueByID(issueId uint64) (*models.Issue, error) {
 	var issue models.Issue
 	if tx := r.DB.Select("id").First(&issue, issueId); tx.Error != nil {
-		return nil, err
+		return nil, tx.Error
 	}
 	return &issue, nil
 }
 
-func (r *Repository) FindSectionByStringID(stringId string) (*models.IssueSection, error) {
-	id, err := GetUint(stringId)
-	if err != nil {
-		return nil, err
-	}
-
-	var section models.IssueSection
-	if tx := r.DB.Select("id").First(&section, id); tx.Error != nil {
-		return nil, err
+func (r *Repository) FindSectionByStringID(sectionId uint64) (*models.Section, error) {
+	var section models.Section
+	if tx := r.DB.Select("id").First(&section, sectionId); tx.Error != nil {
+		return nil, tx.Error
 	}
 	return &section, nil
 }
@@ -54,14 +44,19 @@ func (r *Repository) Save(value interface{}) error {
 }
 
 func (r *Repository) CreateQuery(query *models.SQLQuery) error {
-	db := r.DB.Create(&query)
-	return db.Error
+	return r.DB.Create(&query).Error
 }
 
-func (r *Repository) CreateSection(section *models.IssueSection) error {
+func (r *Repository) CreateSection(section *models.Section) error {
 	return r.DB.Create(section).Error
 }
 
 func GetUint(value string) (uint64, error) {
 	return strconv.ParseUint(value, 10, 64)
+}
+
+func (r *Repository) FindQuery(issueId uint64, sectionId uint64, queryId uint64) (*models.SQLQuery, error) {
+	var query models.SQLQuery
+	tx := r.DB.Where(&models.SQLQuery{IssueID: issueId, SectionID: sectionId, ID: queryId}).First(&query)
+	return &query, tx.Error
 }

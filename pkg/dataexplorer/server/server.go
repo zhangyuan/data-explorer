@@ -29,7 +29,7 @@ func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server
 
 	if err := db.AutoMigrate(
 		&models.Issue{},
-		&models.IssueSection{},
+		&models.Section{},
 		&models.SQLQuery{},
 	); err != nil {
 		return nil, err
@@ -56,6 +56,7 @@ func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server
 	r.POST("/issues/:issueId/sections", issueController.CreateSection)
 	r.GET("/issues/:issueId/sections", issueController.ListSections)
 	r.POST("/issues/:issueId/sections/:sectionId/queries", issueController.CreateQuery)
+	r.GET("/issues/:issueId/sections/:sectionId/queries/:queryId", issueController.GetQuery)
 
 	return &Server{
 		engine: r,
