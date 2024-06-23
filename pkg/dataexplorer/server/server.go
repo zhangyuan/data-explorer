@@ -2,6 +2,7 @@ package server
 
 import (
 	"data-explorer/pkg/dataexplorer/conf"
+	"data-explorer/pkg/dataexplorer/connection"
 	"data-explorer/pkg/dataexplorer/controllers"
 	"data-explorer/pkg/dataexplorer/models"
 	"data-explorer/pkg/dataexplorer/repositories"
@@ -40,7 +41,8 @@ func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server
 		})
 	})
 
-	queryService, err := services.NewQueryService(connectionsConfiguration)
+	connectionHolder := connection.NewConnectionHolder(connectionsConfiguration.Connections)
+	queryService, err := services.NewQueryService(connectionHolder)
 	if err != nil {
 		return nil, err
 	}

@@ -1,17 +1,14 @@
 package controllers
 
 import (
-	"data-explorer/pkg/dataexplorer/db"
 	"data-explorer/pkg/dataexplorer/services"
-	"data-explorer/pkg/dataexplorer/template"
 	"net/http"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
 
 type QueryRequest struct {
-	ConnectionId string            `json:"connectionId"`
+	ConnectionId string            `json:"connection_id" binding:"required"`
 	Title        string            `json:"title"`
 	Query        string            `json:"query"`
 	Params       map[string]string `json:"params"`
@@ -30,25 +27,16 @@ func NewQueryController(queryService *services.QueryService) *QueryController {
 func (controller *QueryController) Query(c *gin.Context) {
 	var request QueryRequest
 	if err := c.Bind(&request); err != nil {
-		c.AbortWithStatusJSON(400, gin.H{
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	dsn := os.Getenv("DSN")
-
-	var query string
-	if request.Params != nil {
-		query = template.SimpleCompile(request.Query, request.Params)
-	} else {
-		query = request.Query
-	}
-
-	result, err := db.Query(c, dsn, query)
+	result, err := controller.queryService.QueryWithParams(c, request.ConnectionId, request.Query, request.Params)
 
 	if err != nil {
-		c.AbortWithStatusJSON(400, gin.H{
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return

@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
 
 type Issue struct {
 	ID        uint64    `gorm:"primarykey" json:"id"`
@@ -33,8 +37,11 @@ type SQLQuery struct {
 
 	IssueSectionID uint64 `json:"section_id"`
 
-	ConnectionId string `json:"connection_id"`
-	Title        string `json:"title"`
-	Query        string `json:"query"`
-	Result       string `json:"result"`
+	ConnectionId string         `json:"connection_id"`
+	Title        string         `json:"title"`
+	Query        string         `json:"input" gorm:"type:text"`
+	Params       datatypes.JSON `json:"params"`
+	Sql          string         `json:"sql" gorm:"type:text"`
+	Result       datatypes.JSON `json:"result"`
+	Duration     int64          `json:"duration"`
 }

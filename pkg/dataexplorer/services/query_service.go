@@ -2,42 +2,34 @@ package services
 
 import (
 	"context"
-	"data-explorer/pkg/dataexplorer/conf"
-	"data-explorer/pkg/dataexplorer/db"
+	"data-explorer/pkg/dataexplorer/connection"
 	"data-explorer/pkg/dataexplorer/template"
-	"errors"
 )
 
 type QueryService struct {
-	Conf *conf.ConnectionsConfiguration
+	connectionHolder *connection.ConnectionHolder
 }
 
-func NewQueryService(conf *conf.ConnectionsConfiguration) (*QueryService, error) {
+func NewQueryService(connectionHolder *connection.ConnectionHolder) (*QueryService, error) {
 	return &QueryService{
-		Conf: conf,
+		connectionHolder: connectionHolder,
 	}, nil
 }
 
-func (s *QueryService) FindConnection(name string) *conf.Connection {
-	for idx := range s.Conf.Connections {
-		connection := s.Conf.Connections[idx]
-		if connection.Id == name {
-			return &connection
-		}
+func (s *QueryService) QueryWithParams(
+	ctx context.Context,
+	connectionId string,
+	sqlQuery string,
+	params map[string]string,
+) (*connection.QueryResult, error) {
+	db, err := s.connectionHolder.GetDB(connectionId)
+	if err != nil {
+		return nil, err
 	}
-	return nil
-}
-
-func (s *QueryService) QueryWithParams(ctx context.Context, connectionName string, sqlQuery string, params map[string]string) (*db.QueryResult, error) {
-	connection := s.FindConnection(connectionName)
-	if connection == nil {
-		return nil, errors.New("invalid connection name")
-	}
-	dsn := connection.DSN
 
 	if params != nil {
 		sqlQuery = template.SimpleCompile(sqlQuery, params)
 	}
 
-	return db.Query(ctx, dsn, sqlQuery)
+	return connection.Query(ctx, db, sqlQuery)
 }

@@ -1,4 +1,4 @@
-package db
+package connection
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/samber/lo"
 )
 
-func NewConnection(dsn string) (*sqlx.DB, error) {
+func NewDB(dsn string) (*sqlx.DB, error) {
 	if strings.HasPrefix(dsn, "postgres") {
 		return sqlx.Connect("postgres", strings.TrimPrefix(dsn, "postgres://"))
 	} else if strings.HasPrefix(dsn, "mysql") {
@@ -31,13 +31,7 @@ type QueryResult struct {
 	Records     []interface{} `json:"records"`
 }
 
-func Query(ctx context.Context, dsn string, query string) (*QueryResult, error) {
-	db, err := NewConnection(dsn)
-	if err != nil {
-		return nil, err
-	}
-	defer db.Close()
-
+func Query(ctx context.Context, db *sqlx.DB, query string) (*QueryResult, error) {
 	rows, err := db.QueryxContext(ctx, query)
 
 	if err != nil {
