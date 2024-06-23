@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
+	"github.com/samber/lo"
 	"gorm.io/datatypes"
 )
 
@@ -31,22 +32,60 @@ type CreateIssueSectionRequest struct {
 	Footer string `json:"footer"`
 }
 
-type IssuesController struct {
+type MainController struct {
 	repository   *repositories.Repository
 	queryService *services.QueryService
 }
 
-func NewIssuesController(
+func NewMainController(
 	issueRepository *repositories.Repository,
 	queryService *services.QueryService,
-) *IssuesController {
-	return &IssuesController{
+) *MainController {
+	return &MainController{
 		repository:   issueRepository,
 		queryService: queryService,
 	}
 }
 
-func (controller *IssuesController) CreateIssue(c *gin.Context) {
+type SectionResponse struct {
+	ID        uint64    `json:"id"`
+	Header    string    `json:"header"`
+	Body      string    `json:"body"`
+	Footer    string    `json:"footer"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdateAt  time.Time `json:"updated_at"`
+}
+
+func NewSectionResponse(section *models.Section) *SectionResponse {
+	return &SectionResponse{
+		ID:        section.ID,
+		Header:    section.Header,
+		Body:      section.Body,
+		Footer:    section.Footer,
+		CreatedAt: section.CreatedAt,
+		UpdateAt:  section.UpdatedAt,
+	}
+}
+
+type IssueResponse struct {
+	ID          uint64    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdateAt    time.Time `json:"updated_at"`
+}
+
+func NewIssueResponse(issue *models.Issue) *IssueResponse {
+	return &IssueResponse{
+		ID:          issue.ID,
+		Title:       issue.Title,
+		Description: issue.Description,
+		CreatedAt:   issue.CreatedAt,
+		UpdateAt:    issue.UpdatedAt,
+	}
+}
+
+func (controller *MainController) CreateIssue(c *gin.Context) {
 	var request CreateIssueRequest
 
 	if err := c.Bind(&request); err != nil {
@@ -64,10 +103,10 @@ func (controller *IssuesController) CreateIssue(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, issue)
+	c.JSON(200, NewIssueResponse(&issue))
 }
 
-func (controller *IssuesController) ListIssues(c *gin.Context) {
+func (controller *MainController) ListIssues(c *gin.Context) {
 	page, err := GetIntOr(c.Query("page"), 1)
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -89,10 +128,14 @@ func (controller *IssuesController) ListIssues(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, issues)
+	response := lo.Map(issues, func(issue models.Issue, index int) *IssueResponse {
+		return NewIssueResponse(&issue)
+	})
+
+	c.JSON(200, response)
 }
 
-func (controller *IssuesController) GetIssue(c *gin.Context) {
+func (controller *MainController) GetIssue(c *gin.Context) {
 	issueId, err := GetUint(c.Param("issueId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -105,10 +148,10 @@ func (controller *IssuesController) GetIssue(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, issue)
+	c.JSON(http.StatusOK, NewIssueResponse(issue))
 }
 
-func (controller *IssuesController) DeleteIssue(c *gin.Context) {
+func (controller *MainController) DeleteIssue(c *gin.Context) {
 	issueId, err := GetUint(c.Param("issueId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -120,6 +163,87 @@ func (controller *IssuesController) DeleteIssue(c *gin.Context) {
 		return
 	}
 
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (controller *MainController) PatchIssue(c *gin.Context) {
+	issueId, err := GetUint(c.Param("issueId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	var request repositories.PatchIssueRequest
+
+	if err := c.Bind(&request); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
+		return
+	}
+
+	issue, err := controller.repository.FindIssueByID(issueId)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
+
+	if err := controller.repository.PatchIssue(issue, request); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
+	c.JSON(http.StatusOK, NewIssueResponse(issue))
+}
+
+func (controller *MainController) PatchSection(c *gin.Context) {
+	sectionId, err := GetUint(c.Param("sectionId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	var request repositories.PatchSectionRequest
+
+	if err := c.Bind(&request); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
+		return
+	}
+
+	section, err := controller.repository.FindSectionByID(sectionId)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
+
+	if err := controller.repository.PatchSection(section, request); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (controller *MainController) PatchQuery(c *gin.Context) {
+	queryId, err := GetUint(c.Param("queryId"))
+	if err != nil {
+		c.AbortWithStatusJSON(400, NewErrorResponse(err))
+		return
+	}
+
+	var request repositories.PatchQueryRequest
+
+	if err := c.Bind(&request); err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, NewErrorResponse(err))
+		return
+	}
+
+	query, err := controller.repository.FindQuery(queryId, &models.SQLQuery{})
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
+
+	if err := controller.repository.PatchQuery(query, request); err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
+		return
+	}
 	c.JSON(http.StatusOK, gin.H{})
 }
 
@@ -151,7 +275,7 @@ func NewErrorResponse(err error) *ErrorResponse {
 	}
 }
 
-func (controller *IssuesController) CreateSection(c *gin.Context) {
+func (controller *MainController) CreateSection(c *gin.Context) {
 	issueId, err := GetUint(c.Param("issueId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -183,10 +307,10 @@ func (controller *IssuesController) CreateSection(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, section)
+	c.JSON(200, NewSectionResponse(&section))
 }
 
-func (controller *IssuesController) CreateQuery(c *gin.Context) {
+func (controller *MainController) CreateQuery(c *gin.Context) {
 	var request CreateQueryRequest
 
 	if err := c.Bind(&request); err != nil {
@@ -267,7 +391,7 @@ func (controller *IssuesController) CreateQuery(c *gin.Context) {
 	c.JSON(http.StatusOK, NewQueryResponse(&sqlQuery))
 }
 
-func (controller *IssuesController) ListQueries(c *gin.Context) {
+func (controller *MainController) ListQueries(c *gin.Context) {
 	page, err := GetIntOr(c.Query("page"), 1)
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -303,7 +427,10 @@ func (controller *IssuesController) ListQueries(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, sqlQueries)
+	response := lo.Map(sqlQueries, func(item models.SQLQuery, index int) *QueryResponse {
+		return NewQueryResponse(&item)
+	})
+	c.JSON(200, response)
 }
 
 func NewQueryResponse(sqlQuery *models.SQLQuery) *QueryResponse {
@@ -326,7 +453,7 @@ type QueryResponse struct {
 	Duration int64          `json:"duration"`
 }
 
-func (controller *IssuesController) ListSections(c *gin.Context) {
+func (controller *MainController) ListSections(c *gin.Context) {
 	page, err := GetIntOr(c.Query("page"), 1)
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -354,10 +481,13 @@ func (controller *IssuesController) ListSections(c *gin.Context) {
 		return
 	}
 
-	c.JSON(200, sections)
+	response := lo.Map(sections, func(item models.Section, index int) SectionResponse {
+		return *NewSectionResponse(&item)
+	})
+	c.JSON(200, response)
 }
 
-func (controller *IssuesController) GetSection(c *gin.Context) {
+func (controller *MainController) GetSection(c *gin.Context) {
 	issueId, err := GetUint(c.Param("issueId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -376,10 +506,10 @@ func (controller *IssuesController) GetSection(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, section)
+	c.JSON(http.StatusOK, NewSectionResponse(section))
 }
 
-func (controller *IssuesController) DeleteSection(c *gin.Context) {
+func (controller *MainController) DeleteSection(c *gin.Context) {
 	sectionId, err := GetUint(c.Param("sectionId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -394,7 +524,7 @@ func (controller *IssuesController) DeleteSection(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{})
 }
 
-func (controller *IssuesController) GetQuery(c *gin.Context) {
+func (controller *MainController) GetQuery(c *gin.Context) {
 	issueId, err := GetUint(c.Param("issueId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))
@@ -426,7 +556,7 @@ func (controller *IssuesController) GetQuery(c *gin.Context) {
 	c.JSON(http.StatusOK, NewQueryResponse(sqlQuery))
 }
 
-func (controller *IssuesController) DeleteQuery(c *gin.Context) {
+func (controller *MainController) DeleteQuery(c *gin.Context) {
 	queryId, err := GetUint(c.Param("queryId"))
 	if err != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(err))

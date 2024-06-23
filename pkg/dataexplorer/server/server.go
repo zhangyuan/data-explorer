@@ -51,21 +51,24 @@ func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server
 	r.POST("/query", queryController.Query)
 
 	repository := repositories.NewRepository(db)
-	issueController := controllers.NewIssuesController(repository, queryService)
-	r.POST("/issues", issueController.CreateIssue)
-	r.GET("/issues", issueController.ListIssues)
-	r.GET("/issues/:issueId", issueController.GetIssue)
-	r.DELETE("/issues/:issueId", issueController.DeleteIssue)
+	mainController := controllers.NewMainController(repository, queryService)
+	r.POST("/issues", mainController.CreateIssue)
+	r.GET("/issues", mainController.ListIssues)
+	r.GET("/issues/:issueId", mainController.GetIssue)
+	r.DELETE("/issues/:issueId", mainController.DeleteIssue)
+	r.PATCH("/issues/:issueId", mainController.PatchIssue)
 
-	r.POST("/issues/:issueId/sections", issueController.CreateSection)
-	r.GET("/issues/:issueId/sections", issueController.ListSections)
-	r.GET("/issues/:issueId/sections/:sectionId", issueController.GetSection)
-	r.DELETE("/sections/:sectionId", issueController.DeleteSection)
+	r.POST("/issues/:issueId/sections", mainController.CreateSection)
+	r.GET("/issues/:issueId/sections", mainController.ListSections)
+	r.GET("/issues/:issueId/sections/:sectionId", mainController.GetSection)
+	r.DELETE("/sections/:sectionId", mainController.DeleteSection)
+	r.PATCH("/sections/:sectionId", mainController.PatchSection)
 
-	r.POST("/issues/:issueId/sections/:sectionId/queries", issueController.CreateQuery)
-	r.GET("/issues/:issueId/sections/:sectionId/queries", issueController.ListQueries)
-	r.GET("/issues/:issueId/sections/:sectionId/queries/:queryId", issueController.GetQuery)
-	r.DELETE("/queries/:queryId", issueController.DeleteQuery)
+	r.POST("/issues/:issueId/sections/:sectionId/queries", mainController.CreateQuery)
+	r.GET("/issues/:issueId/sections/:sectionId/queries", mainController.ListQueries)
+	r.GET("/issues/:issueId/sections/:sectionId/queries/:queryId", mainController.GetQuery)
+	r.DELETE("/queries/:queryId", mainController.DeleteQuery)
+	r.PATCH("/queries/:queryId", mainController.PatchQuery)
 
 	return &Server{
 		engine: r,

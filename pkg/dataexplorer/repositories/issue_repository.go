@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"data-explorer/pkg/dataexplorer/models"
+	"data-explorer/pkg/dataexplorer/types"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -17,12 +18,63 @@ func NewRepository(db *gorm.DB) *Repository {
 	}
 }
 
+type PatchIssueRequest struct {
+	Title       types.Optional[string] `json:"title"`
+	Description types.Optional[string] `json:"description"`
+}
+
+type PatchSectionRequest struct {
+	Header types.Optional[string] `json:"header"`
+	Body   types.Optional[string] `json:"body"`
+	Footer types.Optional[string] `json:"footer"`
+}
+
+type PatchQueryRequest struct {
+	Title types.Optional[string] `json:"title"`
+}
+
 func (r *Repository) FindIssueByID(issueId uint64) (*models.Issue, error) {
 	var issue models.Issue
 	if tx := r.DB.Select("id").First(&issue, issueId); tx.Error != nil {
 		return nil, tx.Error
 	}
 	return &issue, nil
+}
+
+func (r *Repository) PatchIssue(issue *models.Issue, request PatchIssueRequest) error {
+	attributes := map[string]interface{}{}
+	if request.Title.HasValue() {
+		attributes["title"] = request.Title.Value
+	}
+	if request.Description.HasValue() {
+		attributes["description"] = request.Title.Value
+	}
+
+	return r.DB.Model(&issue).Updates(attributes).Error
+}
+
+func (r *Repository) PatchSection(section *models.Section, request PatchSectionRequest) error {
+	attributes := map[string]interface{}{}
+	if request.Header.HasValue() {
+		attributes["header"] = request.Header.Value
+	}
+	if request.Body.HasValue() {
+		attributes["body"] = request.Body.Value
+	}
+	if request.Footer.HasValue() {
+		attributes["footer"] = request.Footer.Value
+	}
+
+	return r.DB.Model(&section).Updates(attributes).Error
+}
+
+func (r *Repository) PatchQuery(query *models.SQLQuery, request PatchQueryRequest) error {
+	attributes := map[string]interface{}{}
+	if request.Title.HasValue() {
+		attributes["title"] = request.Title.Value
+	}
+
+	return r.DB.Model(&query).Updates(attributes).Error
 }
 
 func (r *Repository) FindSectionByID(sectionId uint64) (*models.Section, error) {
@@ -65,8 +117,10 @@ func GetUint(value string) (uint64, error) {
 
 func (r *Repository) FindQuery(queryId uint64, where *models.SQLQuery) (*models.SQLQuery, error) {
 	var query models.SQLQuery
-	tx := r.DB.Where(where).First(&query, queryId)
-	return &query, tx.Error
+	if err := r.DB.Where(where).First(&query, queryId).Error; err != nil {
+		return nil, err
+	}
+	return &query, nil
 }
 
 func (r *Repository) DeleteQuery(queryId uint64) error {
