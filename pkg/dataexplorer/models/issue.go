@@ -4,8 +4,8 @@ import "time"
 
 type Issue struct {
 	ID        uint64    `gorm:"primarykey" json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	Title       string `json:"title"`
 	Description string `json:"description"`
@@ -15,25 +15,26 @@ type Issue struct {
 
 type IssueSection struct {
 	ID        uint64    `gorm:"primarykey" json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-	IssueID   uint64    `json:"issueId"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	IssueID   uint64    `json:"issue_id"`
 
 	Header string `json:"header"`
 	Body   string `json:"body"`
 	Footer string `json:"footer"`
 
-	Queries []Query `json:"queries"`
+	Queries []SQLQuery `json:"queries"`
 }
 
-type Query struct {
+type SQLQuery struct {
 	ID        uint64    `gorm:"primarykey" json:"id"`
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
-	IssueSectionID uint64 `json:"sectionId"`
+	IssueSectionID uint64 `json:"section_id"`
 
-	Title  string `json:"title"`
-	Query  string `json:"query"`
-	Result string `json:"result"`
+	ConnectionId string `json:"connection_id"`
+	Title        string `json:"title"`
+	Query        string `json:"query"`
+	Result       string `json:"result"`
 }

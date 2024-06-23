@@ -48,7 +48,12 @@ func (r *Repository) CreateIssue(issue *models.Issue) error {
 	return tx.Error
 }
 
-func (r *Repository) CreateQuery(query *models.Query) error {
+func (r *Repository) Save(value interface{}) error {
+	tx := r.DB.Save(value)
+	return tx.Error
+}
+
+func (r *Repository) CreateQuery(query *models.SQLQuery) error {
 	db := r.DB.Create(&query)
 	return db.Error
 }

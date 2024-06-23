@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"data-explorer/pkg/dataexplorer/db"
+	"data-explorer/pkg/dataexplorer/services"
 	"data-explorer/pkg/dataexplorer/template"
 	"net/http"
 	"os"
@@ -17,10 +18,13 @@ type QueryRequest struct {
 }
 
 type QueryController struct {
+	queryService *services.QueryService
 }
 
-func NewQueryController() *QueryController {
-	return &QueryController{}
+func NewQueryController(queryService *services.QueryService) *QueryController {
+	return &QueryController{
+		queryService: queryService,
+	}
 }
 
 func (controller *QueryController) Query(c *gin.Context) {

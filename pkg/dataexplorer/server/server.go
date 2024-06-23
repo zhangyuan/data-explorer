@@ -1,9 +1,11 @@
 package server
 
 import (
+	"data-explorer/pkg/dataexplorer/conf"
 	"data-explorer/pkg/dataexplorer/controllers"
 	"data-explorer/pkg/dataexplorer/models"
 	"data-explorer/pkg/dataexplorer/repositories"
+	"data-explorer/pkg/dataexplorer/services"
 	"errors"
 	"net/http"
 
@@ -16,7 +18,7 @@ type Server struct {
 	engine *gin.Engine
 }
 
-func NewServer() (*Server, error) {
+func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server, error) {
 	r := gin.Default()
 
 	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
@@ -27,7 +29,7 @@ func NewServer() (*Server, error) {
 	if err := db.AutoMigrate(
 		&models.Issue{},
 		&models.IssueSection{},
-		&models.Query{},
+		&models.SQLQuery{},
 	); err != nil {
 		return nil, err
 	}
@@ -38,11 +40,16 @@ func NewServer() (*Server, error) {
 		})
 	})
 
-	queryController := controllers.NewQueryController()
+	queryService, err := services.NewQueryService(connectionsConfiguration)
+	if err != nil {
+		return nil, err
+	}
+
+	queryController := controllers.NewQueryController(queryService)
 	r.POST("/query", queryController.Query)
 
 	repository := repositories.NewRepository(db)
-	issueController := controllers.NewIssuesController(repository)
+	issueController := controllers.NewIssuesController(repository, queryService)
 	r.POST("/issues", issueController.Create)
 	r.POST("/issues/:issueId/sections", issueController.CreateSection)
 	r.GET("/issues/:issueId/sections", issueController.ListSections)

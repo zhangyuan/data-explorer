@@ -1,6 +1,7 @@
 package serve
 
 import (
+	"data-explorer/pkg/dataexplorer/conf"
 	"data-explorer/pkg/dataexplorer/server"
 	"errors"
 	"log"
@@ -21,7 +22,12 @@ var ServeCmd = &cobra.Command{
 			}
 		}
 
-		server, err := server.NewServer()
+		connectionsConf, err := conf.LoadConnection(connectionsPath)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		server, err := server.NewServer(connectionsConf)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -32,5 +38,9 @@ var ServeCmd = &cobra.Command{
 	},
 }
 
+var connectionsPath string
+
 func init() {
+	ServeCmd.Flags().StringVarP(&connectionsPath, "connections", "c", "connections.yaml", "Path to the connection conf file")
+	_ = ServeCmd.MarkFlagRequired("connections")
 }
