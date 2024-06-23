@@ -25,9 +25,17 @@ func (r *Repository) FindIssueByID(issueId uint64) (*models.Issue, error) {
 	return &issue, nil
 }
 
-func (r *Repository) FindSectionByStringID(sectionId uint64) (*models.Section, error) {
+func (r *Repository) FindSectionByID(sectionId uint64) (*models.Section, error) {
 	var section models.Section
 	if tx := r.DB.Select("id").First(&section, sectionId); tx.Error != nil {
+		return nil, tx.Error
+	}
+	return &section, nil
+}
+
+func (r *Repository) FindSection(sectionId uint64, condition *models.Section) (*models.Section, error) {
+	var section models.Section
+	if tx := r.DB.Where(condition).First(&section, sectionId); tx.Error != nil {
 		return nil, tx.Error
 	}
 	return &section, nil
@@ -55,8 +63,44 @@ func GetUint(value string) (uint64, error) {
 	return strconv.ParseUint(value, 10, 64)
 }
 
-func (r *Repository) FindQuery(issueId uint64, sectionId uint64, queryId uint64) (*models.SQLQuery, error) {
+func (r *Repository) FindQuery(queryId uint64, where *models.SQLQuery) (*models.SQLQuery, error) {
 	var query models.SQLQuery
-	tx := r.DB.Where(&models.SQLQuery{IssueID: issueId, SectionID: sectionId, ID: queryId}).First(&query)
+	tx := r.DB.Where(where).First(&query, queryId)
 	return &query, tx.Error
+}
+
+func (r *Repository) DeleteQuery(queryId uint64) error {
+	return r.DB.Delete(&models.SQLQuery{}, queryId).Error
+}
+
+func (r *Repository) DeleteSectionByID(sectionId uint64) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := r.DB.Where("section_id = ?", sectionId).Delete(&models.SQLQuery{}).Error; err != nil {
+			return err
+		}
+
+		if err := r.DB.Delete(&models.Section{}, sectionId).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+func (r *Repository) DeleteIssueByID(issueId uint64) error {
+	return r.DB.Transaction(func(tx *gorm.DB) error {
+		if err := r.DB.Where("issue_id = ?", issueId).Delete(&models.SQLQuery{}).Error; err != nil {
+			return err
+		}
+
+		if err := r.DB.Where("issue_id = ?", issueId).Delete(&models.Section{}).Error; err != nil {
+			return err
+		}
+
+		if err := r.DB.Delete(&models.Issue{}, issueId).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }

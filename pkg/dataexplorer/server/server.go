@@ -52,11 +52,20 @@ func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server
 
 	repository := repositories.NewRepository(db)
 	issueController := controllers.NewIssuesController(repository, queryService)
-	r.POST("/issues", issueController.Create)
+	r.POST("/issues", issueController.CreateIssue)
+	r.GET("/issues", issueController.ListIssues)
+	r.GET("/issues/:issueId", issueController.GetIssue)
+	r.DELETE("/issues/:issueId", issueController.DeleteIssue)
+
 	r.POST("/issues/:issueId/sections", issueController.CreateSection)
 	r.GET("/issues/:issueId/sections", issueController.ListSections)
+	r.GET("/issues/:issueId/sections/:sectionId", issueController.GetSection)
+	r.DELETE("/sections/:sectionId", issueController.DeleteSection)
+
 	r.POST("/issues/:issueId/sections/:sectionId/queries", issueController.CreateQuery)
+	r.GET("/issues/:issueId/sections/:sectionId/queries", issueController.ListQueries)
 	r.GET("/issues/:issueId/sections/:sectionId/queries/:queryId", issueController.GetQuery)
+	r.DELETE("/queries/:queryId", issueController.DeleteQuery)
 
 	return &Server{
 		engine: r,
