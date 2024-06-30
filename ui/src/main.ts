@@ -2,6 +2,14 @@ import { createApp } from "vue";
 import { createWebHashHistory, createRouter } from "vue-router";
 
 import "./style.css";
+
+import 'highlight.js/styles/stackoverflow-light.css'
+import hljs from 'highlight.js/lib/core';
+import javascript from 'highlight.js/lib/languages/sql';
+import hljsVuePlugin from "@highlightjs/vue-plugin";
+hljs.registerLanguage('sql', javascript);
+
+
 import App from "@/App.vue";
 
 import HomeView from "./components/HomeView.vue";
@@ -23,4 +31,7 @@ const router = createRouter({
 
 const app = createApp(App);
 app.use(router);
+app.use(hljsVuePlugin);
 app.mount("#app");
+
+hljs.highlightAll()

@@ -71,9 +71,11 @@ const onCreateQuery = async() => {
                 <div class="m-3">{{ section.body }}</div>
 
                 <div v-for="query in section.queries" v-bind:key="query.id" class="m-3 border p-3">
-                    <div>{{ query.query }}</div>
-                    <div>{{ query.params }}</div>
-                    <div>{{ query.sql }}</div>
+                    <div v-if="query.params">
+                        <highlightjs language="sql" :code="query.query"/>
+                    </div>
+                    <div class="my-2" v-if="query.params">{{ query.params }}</div>
+                    <div class="my-3"><highlightjs language="sql" :code="query.sql"/></div>
                      <table class="border-solid border border-gray-200" v-if="query.result">
                         <thead>
                             <tr>
