@@ -48,12 +48,13 @@ func NewMainController(
 }
 
 type SectionResponse struct {
-	ID        uint64    `json:"id"`
-	Header    string    `json:"header"`
-	Body      string    `json:"body"`
-	Footer    string    `json:"footer"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdateAt  time.Time `json:"updated_at"`
+	ID        uint64          `json:"id"`
+	Header    string          `json:"header"`
+	Body      string          `json:"body"`
+	Footer    string          `json:"footer"`
+	CreatedAt time.Time       `json:"created_at"`
+	UpdateAt  time.Time       `json:"updated_at"`
+	Queries   []QueryResponse `json:"queries,omitempty"`
 }
 
 func NewSectionResponse(section *models.Section) *SectionResponse {
@@ -64,6 +65,20 @@ func NewSectionResponse(section *models.Section) *SectionResponse {
 		Footer:    section.Footer,
 		CreatedAt: section.CreatedAt,
 		UpdateAt:  section.UpdatedAt,
+	}
+}
+
+func NewSectionWithQueriesResponse(section *models.Section) *SectionResponse {
+	return &SectionResponse{
+		ID:        section.ID,
+		Header:    section.Header,
+		Body:      section.Body,
+		Footer:    section.Footer,
+		CreatedAt: section.CreatedAt,
+		UpdateAt:  section.UpdatedAt,
+		Queries: lo.Map(section.Queries, func(query models.SQLQuery, _ int) QueryResponse {
+			return *NewQueryResponse(&query)
+		}),
 	}
 }
 
@@ -142,7 +157,7 @@ func (controller *MainController) GetIssue(c *gin.Context) {
 		return
 	}
 
-	issue, err := controller.repository.FindIssueByID(issueId)
+	issue, err := controller.repository.FindIssue(issueId)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
 		return
@@ -476,13 +491,13 @@ func (controller *MainController) ListSections(c *gin.Context) {
 
 	var sections []models.Section
 
-	if tx := controller.repository.DB.Limit(limit).Offset(offset).Where(&models.Section{IssueID: issueId}).Find(&sections); tx.Error != nil {
+	if tx := controller.repository.DB.Preload("Queries").Limit(limit).Offset(offset).Where(&models.Section{IssueID: issueId}).Find(&sections); tx.Error != nil {
 		c.AbortWithStatusJSON(400, NewErrorResponse(tx.Error))
 		return
 	}
 
 	response := lo.Map(sections, func(item models.Section, index int) SectionResponse {
-		return *NewSectionResponse(&item)
+		return *NewSectionWithQueriesResponse(&item)
 	})
 	c.JSON(200, response)
 }
@@ -500,7 +515,7 @@ func (controller *MainController) GetSection(c *gin.Context) {
 		return
 	}
 
-	section, err := controller.repository.FindSection(sectionId, &models.Section{IssueID: issueId})
+	section, err := controller.repository.FindSectionWithQueries(sectionId, &models.Section{IssueID: issueId})
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, NewErrorResponse(err))
 		return

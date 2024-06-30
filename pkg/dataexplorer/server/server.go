@@ -8,11 +8,15 @@ import (
 	"data-explorer/pkg/dataexplorer/repositories"
 	"data-explorer/pkg/dataexplorer/services"
 	"errors"
+	"log"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type Server struct {
@@ -22,7 +26,20 @@ type Server struct {
 func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server, error) {
 	r := gin.Default()
 
-	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+	gormLogger := logger.New(
+		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
+		logger.Config{
+			SlowThreshold:             time.Second, // Slow SQL threshold
+			LogLevel:                  logger.Info, // Log level
+			IgnoreRecordNotFoundError: false,       // Ignore ErrRecordNotFound error for logger
+			ParameterizedQueries:      true,        // Don't include params in the SQL log
+			Colorful:                  true,        // Disable color
+		},
+	)
+
+	db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		Logger: gormLogger,
+	})
 	if err != nil {
 		return nil, errors.New("failed to connect database")
 	}
@@ -48,27 +65,31 @@ func NewServer(connectionsConfiguration *conf.ConnectionsConfiguration) (*Server
 	}
 
 	queryController := controllers.NewQueryController(queryService)
-	r.POST("/query", queryController.Query)
-
 	repository := repositories.NewRepository(db)
 	mainController := controllers.NewMainController(repository, queryService)
-	r.POST("/issues", mainController.CreateIssue)
-	r.GET("/issues", mainController.ListIssues)
-	r.GET("/issues/:issueId", mainController.GetIssue)
-	r.DELETE("/issues/:issueId", mainController.DeleteIssue)
-	r.PATCH("/issues/:issueId", mainController.PatchIssue)
 
-	r.POST("/issues/:issueId/sections", mainController.CreateSection)
-	r.GET("/issues/:issueId/sections", mainController.ListSections)
-	r.GET("/issues/:issueId/sections/:sectionId", mainController.GetSection)
-	r.DELETE("/sections/:sectionId", mainController.DeleteSection)
-	r.PATCH("/sections/:sectionId", mainController.PatchSection)
+	api := r.Group("/api")
+	{
+		api.POST("/query", queryController.Query)
 
-	r.POST("/issues/:issueId/sections/:sectionId/queries", mainController.CreateQuery)
-	r.GET("/issues/:issueId/sections/:sectionId/queries", mainController.ListQueries)
-	r.GET("/issues/:issueId/sections/:sectionId/queries/:queryId", mainController.GetQuery)
-	r.DELETE("/queries/:queryId", mainController.DeleteQuery)
-	r.PATCH("/queries/:queryId", mainController.PatchQuery)
+		api.POST("/issues", mainController.CreateIssue)
+		api.GET("/issues", mainController.ListIssues)
+		api.GET("/issues/:issueId", mainController.GetIssue)
+		api.DELETE("/issues/:issueId", mainController.DeleteIssue)
+		api.PATCH("/issues/:issueId", mainController.PatchIssue)
+
+		api.POST("/issues/:issueId/sections", mainController.CreateSection)
+		api.GET("/issues/:issueId/sections", mainController.ListSections)
+		api.GET("/issues/:issueId/sections/:sectionId", mainController.GetSection)
+		api.DELETE("/sections/:sectionId", mainController.DeleteSection)
+		api.PATCH("/sections/:sectionId", mainController.PatchSection)
+
+		api.POST("/issues/:issueId/sections/:sectionId/queries", mainController.CreateQuery)
+		api.GET("/issues/:issueId/sections/:sectionId/queries", mainController.ListQueries)
+		api.GET("/issues/:issueId/sections/:sectionId/queries/:queryId", mainController.GetQuery)
+		api.DELETE("/queries/:queryId", mainController.DeleteQuery)
+		api.PATCH("/queries/:queryId", mainController.PatchQuery)
+	}
 
 	return &Server{
 		engine: r,

@@ -41,6 +41,14 @@ func (r *Repository) FindIssueByID(issueId uint64) (*models.Issue, error) {
 	return &issue, nil
 }
 
+func (r *Repository) FindIssue(issueId uint64) (*models.Issue, error) {
+	var issue models.Issue
+	if tx := r.DB.First(&issue, issueId); tx.Error != nil {
+		return nil, tx.Error
+	}
+	return &issue, nil
+}
+
 func (r *Repository) PatchIssue(issue *models.Issue, request PatchIssueRequest) error {
 	attributes := map[string]interface{}{}
 	if request.Title.HasValue() {
@@ -88,6 +96,14 @@ func (r *Repository) FindSectionByID(sectionId uint64) (*models.Section, error) 
 func (r *Repository) FindSection(sectionId uint64, condition *models.Section) (*models.Section, error) {
 	var section models.Section
 	if tx := r.DB.Where(condition).First(&section, sectionId); tx.Error != nil {
+		return nil, tx.Error
+	}
+	return &section, nil
+}
+
+func (r *Repository) FindSectionWithQueries(sectionId uint64, condition *models.Section) (*models.Section, error) {
+	var section models.Section
+	if tx := r.DB.Preload("Queries").Where(condition).First(&section, sectionId); tx.Error != nil {
 		return nil, tx.Error
 	}
 	return &section, nil
